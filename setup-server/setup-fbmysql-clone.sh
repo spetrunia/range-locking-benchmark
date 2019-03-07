@@ -15,7 +15,7 @@ if [ "x${branch}y" = "xy" ] ; then
 fi
 
 DATADIR=`pwd`/data-fbmysql-$name
-BASEDIR=`pwd`/mysql-5.6-name
+BASEDIR=`pwd`/mysql-5.6-$name
 
 #git clone --branch $branch --depth 1 https://github.com/spetrunia/mysql-5.6.git mysql-5.6-$name
 git clone --branch $branch --single-branch https://github.com/spetrunia/mysql-5.6.git mysql-5.6-$name
@@ -38,6 +38,9 @@ cp -r var/install.db $DATADIR
 cd ../..
 
 cat > my-fbmysql-$name.cnf << EOF
+[client]
+socket=/tmp/mysql.sock
+
 [mysqld]
 
 datadir=$DATADIR
@@ -48,7 +51,7 @@ default-tmp-storage-engine=MyISAM
 rocksdb
 
 #debug
-log-bin=pslp
+# log-bin=pslp
 binlog-format=row
 
 tmpdir=/tmp
@@ -56,7 +59,8 @@ port=3306
 socket=/tmp/mysql.sock
 gdb
 
-language=$BASEDIR/share/english
+log-error
+language=$BASEDIR/sql/share/english
 server-id=12
 
 # rocksdb_use_range_locking=1 
