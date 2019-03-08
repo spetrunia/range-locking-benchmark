@@ -1,9 +1,23 @@
 #!/bin/bash
 
+###
+### Parse options
+###
+USAGE_STR="Usage: $0 [-p] server_name test_run_name"
+
+while getopts ":p" opt; do
+  case ${opt} in
+    p ) USE_PERF=1
+      ;;
+    \? ) echo $USAGE_STR
+	 exit 1
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
 SERVERNAME=$1
 RUN_NAME=$2
-
-USAGE_STR="Usage: $0 server_name test_run_name"
 
 if [ "x${SERVERNAME}y" = "xy" ] ; then
   echo $USAGE_STR
@@ -29,7 +43,13 @@ if [ -d $RESULT_DIR ]; then
 fi
 
 echo "Starting test "$RUN_NAME" with $SERVER_DIR"
+if [[ $USE_PERF ]] ; then
+  echo " Collecting perf profile"
+fi
+exit 0
 
+#############################################################################
+### Start the server
 killall -9 mysqld
 sleep 5
 
@@ -56,6 +76,15 @@ while true ; do
   fi 
 done
 
+MYSQLD_PID=`ps -C mysqld --no-header | awk '{print $1}'`
+if [[ "a${MYSQLD_PID}b" == "ab" ]] ; then 
+  echo "Failed to locate mysqld process"
+  exit 1
+fi
+
+
+#############################################################################
+### Prepare the benchmark
 
 RESULT_DIR=results/$RUN_NAME
 
@@ -89,7 +118,17 @@ sysbench $SYSBENCH_ARGS prepare | tee $RESULT_DIR/sysbench-prepare.txt
 ./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf \
   -uroot -e "create table test.rocksdb_vars as select * from information_schema.GLOBAL_STATUS where variable_name like 'ROCKSDB%'"
 
+#############################################################################
+### Start the profiler
+if [[ $USE_PERF ]] ; then
+  # Start perf
+  sudo sh -c "echo -1 >>  /proc/sys/kernel/perf_event_paranoid"
+  perf record -F 99 -p $MYSQLD_PID --call-graph dwarf sleep 300
+fi
 
+
+#############################################################################
+### Run the benchmnark
 for threads in 1 5 10 20 40 ; do
   #echo "THREADS $threads $storage_engine"
 
