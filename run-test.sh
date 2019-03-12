@@ -46,7 +46,7 @@ echo "Starting test "$RUN_NAME" with $SERVER_DIR"
 if [[ $USE_PERF ]] ; then
   echo " Collecting perf profile"
 fi
-exit 0
+#exit 0
 
 #############################################################################
 ### Start the server
@@ -93,8 +93,8 @@ mkdir -p $RESULT_DIR
 SYSBENCH_ARGS=" --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=root \
   --mysql-storage-engine=rocksdb \
   --time=60 \
-  /usr/share/sysbench/oltp_read_write.lua --table-size=1000000"
-SYSBENCH_TEST="oltp_read_write.lua"
+  /usr/share/sysbench/oltp_write_only.lua --table-size=1000000"
+SYSBENCH_TEST="oltp_write_only.lua"
 
 cat > $RESULT_DIR/info.txt <<END
 SERVERNAME=$SERVERNAME
