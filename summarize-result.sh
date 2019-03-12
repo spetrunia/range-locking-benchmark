@@ -35,7 +35,7 @@ printf "Threads,\tQPS\n"
 for i in $RESULT_DIR/sysbench-run-?.txt ; do 
   if [[ -f $i ]]; then
     THR=`perl -ne 'print $1 if ( /Number of threads: ([0-9]+)/)' $i`
-    QPS=`perl -ne 'print $1 if ( /queries: *[0-9]+ \(([0-9.]+) per sec\.\)/)' $i`
+    QPS=`perl -ne 'print $1 if ( /queries: *[0-9]+ +\(([0-9.]+) per sec\.\)/)' $i`
     printf "%s\t%s\n" $THR $QPS
   fi
 done
@@ -43,7 +43,7 @@ done
 for i in $RESULT_DIR/sysbench-run-??.txt ; do 
   if [[ -f $i ]]; then
     THR=`perl -ne 'print $1 if ( /Number of threads: ([0-9]+)/)' $i`
-    QPS=`perl -ne 'print $1 if ( /queries: *[0-9]+ \(([0-9.]+) per sec\.\)/)' $i`
+    QPS=`perl -ne 'print $1 if ( /queries: *[0-9]+ +\(([0-9.]+) per sec\.\)/)' $i`
     #echo "$THR, $QPS"
     printf "%s\t%s\n" $THR $QPS
   fi
@@ -52,7 +52,7 @@ done
 for i in $RESULT_DIR/sysbench-run-???.txt ; do 
   if [[ -f $i ]]; then
     THR=`perl -ne 'print $1 if ( /Number of threads: ([0-9]+)/)' $i`
-    QPS=`perl -ne 'print $1 if ( /queries: *[0-9]+ \(([0-9.]+) per sec\.\)/)' $i`
+    QPS=`perl -ne 'print $1 if ( /queries: *[0-9]+ +\(([0-9.]+) per sec\.\)/)' $i`
     printf "%s\t%s\n" $THR $QPS
   fi
 done
