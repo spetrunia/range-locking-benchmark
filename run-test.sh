@@ -55,7 +55,7 @@ sleep 5
 
 DATA_DIR=data-fbmysql-$SERVERNAME
 rm -rf $DATA_DIR
-cp -r ${DATA_DIR}.clean $DATA_DIR
+# cp -r ${DATA_DIR}.clean /dev/shm/$DATA_DIR
 
 ./$SERVER_DIR/sql/mysqld --defaults-file=./my-fbmysql-${SERVERNAME}.cnf & 
 
@@ -129,7 +129,7 @@ fi
 
 #############################################################################
 ### Run the benchmnark
-for threads in 1 5 10 20 40 ; do
+for threads in 1 5 10 20 40 60 80 100; do
   #echo "THREADS $threads $storage_engine"
 
 

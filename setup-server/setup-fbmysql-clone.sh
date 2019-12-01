@@ -35,6 +35,7 @@ make -j8
 cd mysql-test
 ./mtr alias
 cp -r var/install.db $DATADIR
+cp -r var/install.db $DATADIR.clean
 cd ../..
 
 cat > my-fbmysql-$name.cnf << EOF
