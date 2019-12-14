@@ -1,6 +1,6 @@
 #!/bin/bash
 
-./setup.sh
+#./setup.sh
 
 echo "rocksdb_use_range_locking=1" >>  my-fbmysql-range-locking.cnf
 
