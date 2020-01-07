@@ -1,15 +1,18 @@
 #!/bin/bash
 
+usage () {
+echo "Usage: $0 [-p] [-m] [-c] [-d] server_name test_run_name"
+echo "  -p - Use perf for profiling"
+echo "  -m - Put datadir on /dev/shm"
+echo "  -c - Assume sysbench uses 4 tables and move them to different CFs."
+echo "  -d - Same but use 2 CFs"
+}
+
 ###
 ### Parse options
 ###
-USAGE_STR="Usage: $0 [-p] [-m] [-c] server_name test_run_name \
-  -p - Use perf for profiling 
-  -m - Put datadir on /dev/shm
-  -c - Assume sysbench uses 4 tables and move them to different CFs.
-"
 
-while getopts ":pmc" opt; do
+while getopts ":pmcd" opt; do
   case ${opt} in
     p ) USE_PERF=1
       ;;
@@ -17,8 +20,11 @@ while getopts ":pmc" opt; do
       ;;
     c ) USE_4_CFS=1
       ;;
-    \? ) echo $USAGE_STR
-	 exit 1
+    d ) USE_2_CFS=1
+      ;;
+    \? ) 
+	usage;
+        exit 1
       ;;
   esac
 done
@@ -27,13 +33,18 @@ shift $((OPTIND -1))
 SERVERNAME=$1
 RUN_NAME=$2
 
+if [[ $USE_4_CFS && $USE_2_CFS ]] ; then
+  echo "Use either -c (USE_4_CFS) or -d (USE_2_CFS)"
+  exit 1
+fi
+
 if [ "x${SERVERNAME}y" = "xy" ] ; then
-  echo $USAGE_STR
+  usage;
   exit 1
 fi
 
 if [ "x${RUN_NAME}y" = "xy" ] ; then
-  echo $USAGE_STR
+  usage;
   exit 1
 fi
 
@@ -58,7 +69,14 @@ fi
 if [[ $USE_RAMDISK ]] ; then
   echo " Using /dev/shm for data dir"
 fi
-#exit 0
+
+if [[ $USE_4_CFS ]] ; then
+  echo " Data is in 4 tables"
+fi
+
+if [[ $USE_2_CFS ]] ; then
+  echo " Data is in 2 tables"
+fi
 
 #############################################################################
 ### Start the server
@@ -120,7 +138,17 @@ mkdir -p $RESULT_DIR
 SYSBENCH_ARGS=" --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=root \
   --mysql-storage-engine=rocksdb \
   --time=60 \
-  /usr/share/sysbench/oltp_write_only.lua --table-size=250000 --tables=4"
+  /usr/share/sysbench/oltp_write_only.lua" 
+
+if [[ $USE_4_CFS ]] ; then
+  SYSBENCH_ARGS="$SYSBENCH_ARGS	--tables=4 --table-size=250000"
+elif [[ $USE_2_CFS ]] ; then 
+  SYSBENCH_ARGS="$SYSBENCH_ARGS	--tables=2 --table-size=500000"
+else
+  SYSBENCH_ARGS="$SYSBENCH_ARGS	--table-size=1000000"
+fi
+
+##  /usr/share/sysbench/oltp_write_only.lua --table-size=250000 --tables=4"
 SYSBENCH_TEST="oltp_write_only.lua"
 
 cat > $RESULT_DIR/info.txt <<END
@@ -139,6 +167,13 @@ if [[ $USE_4_CFS ]] ; then
   ./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf \
   -uroot  < make-4-cfs.sql
 fi
+
+if [[ $USE_2_CFS ]] ; then
+  echo "Splitting 2 tables into different CFs"
+  ./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf \
+  -uroot  < make-2-cfs.sql
+fi
+
 sleep 3
 ./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf \
   -uroot -e "show variables like 'rocksdb%'" > $RESULT_DIR/variables-rocksdb.txt
