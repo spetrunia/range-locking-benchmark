@@ -95,12 +95,13 @@ else
 fi	
 
 #exit 0;
-./$SERVER_DIR/sql/mysqld --defaults-file=./my-fbmysql-${SERVERNAME}.cnf & 
 
 
 server_attempts=0
 
 while true ; do
+  ./$SERVER_DIR/sql/mysqld --defaults-file=./my-fbmysql-${SERVERNAME}.cnf & 
+  sleep 5
   client_attempts=0
   while true ; do
     ./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf -uroot -e "create database sbtest"
