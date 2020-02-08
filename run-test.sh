@@ -95,7 +95,7 @@ else
 fi	
 
 #exit 0;
-
+MYSQL_CMD="./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf -uroot"
 
 server_attempts=0
 
@@ -104,7 +104,7 @@ while true ; do
   sleep 5
   client_attempts=0
   while true ; do
-    ./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf -uroot -e "create database sbtest"
+    $MYSQL_CMD -e "create database sbtest"
 
     if [ $? -eq 0 ]; then
       break
@@ -165,28 +165,21 @@ sysbench $SYSBENCH_ARGS prepare | tee $RESULT_DIR/sysbench-prepare.txt
 
 if [[ $USE_4_CFS ]] ; then
   echo "Splitting 4 tables into different CFs"
-  ./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf \
-  -uroot  < make-4-cfs.sql
+  $MYSQL_CMD < make-4-cfs.sql
 fi
 
 if [[ $USE_2_CFS ]] ; then
   echo "Splitting 2 tables into different CFs"
-  ./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf \
-  -uroot  < make-2-cfs.sql
+  $MYSQL_CMD < make-2-cfs.sql
 fi
 
 sleep 3
-./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf \
-  -uroot -e "show variables like 'rocksdb%'" > $RESULT_DIR/variables-rocksdb.txt
+$MYSQL_CMD -e "show variables like 'rocksdb%'" > $RESULT_DIR/variables-rocksdb.txt
 
-./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf \
-  -uroot -e "show variables" > $RESULT_DIR/variables-all.txt
+$MYSQL_CMD -e "show variables" > $RESULT_DIR/variables-all.txt
 
-./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf \
-  -uroot -e "select * from information_schema.GLOBAL_STATUS where variable_name like 'ROCKSDB%'" > $RESULT_DIR/status-before-test.txt
+$MYSQL_CMD -e "select * from information_schema.GLOBAL_STATUS where variable_name like 'ROCKSDB%'" > $RESULT_DIR/status-before-test.txt
 
-./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf \
-  -uroot -e "create table test.rocksdb_vars as select * from information_schema.GLOBAL_STATUS where variable_name like 'ROCKSDB%'"
 
 sleep 3
 #############################################################################
@@ -204,17 +197,30 @@ for threads in 1 5 10 20 40 60 80 100; do
   #echo "THREADS $threads $storage_engine"
 
 
+  $MYSQL_CMD -e "drop table if exists test.rocksdb_vars;"
+  $MYSQL_CMD -e "create table test.rocksdb_vars as select * from information_schema.GLOBAL_STATUS where variable_name like 'ROCKSDB%'"
+
+  $MYSQL_CMD -e "drop table if exists test.rocksdb_perf_context_global;"
+  $MYSQL_CMD -e "create table test.rocksdb_perf_context_global as select * from information_schema.rocksdb_perf_context_global \
+	         where stat_type LIKE '%RANGELOCK%'"
+
   SYSBENCH_ALL_ARGS="$SYSBENCH_ARGS --threads=$threads"
 
   OUTFILE="${RESULT_DIR}/sysbench-run-${threads}.txt"
   sysbench $SYSBENCH_ALL_ARGS run | tee $OUTFILE
+
+  $MYSQL_CMD -e \
+  "select A.VARIABLE_NAME, B.VARIABLE_VALUE - A.VARIABLE_VALUE \
+   from information_schema.GLOBAL_STATUS B, test.rocksdb_vars A \
+   where B.VARIABLE_NAME=A.VARIABLE_NAME AND B.VARIABLE_VALUE - A.VARIABLE_VALUE >0" > $RESULT_DIR/status-after-test-$threads.txt
+
+  $MYSQL_CMD -e \
+  "select A.STAT_TYPE, B.VALUE - A.VALUE \
+   from information_schema.rocksdb_perf_context_global B, test.rocksdb_perf_context_global A \
+   where B.STAT_TYPE=A.STAT_TYPE AND B.VALUE - A.VALUE >0" > $RESULT_DIR/perf_context-after-test-$threads.txt
+
 done
 
-./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf \
-  -uroot \
-  -e "select A.VARIABLE_NAME, B.VARIABLE_VALUE - A.VARIABLE_VALUE \
-      from information_schema.GLOBAL_STATUS B, test.rocksdb_vars A \
-      where B.VARIABLE_NAME=A.VARIABLE_NAME AND B.VARIABLE_VALUE - A.VARIABLE_VALUE >0" > $RESULT_DIR/status-after-test.txt
 
 
 
