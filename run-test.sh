@@ -104,6 +104,7 @@ while true ; do
   sleep 5
   client_attempts=0
   while true ; do
+    $MYSQL_CMD -e "drop database sbtest"
     $MYSQL_CMD -e "create database sbtest"
 
     if [ $? -eq 0 ]; then
@@ -215,7 +216,7 @@ for threads in 1 5 10 20 40 60 80 100; do
    where B.VARIABLE_NAME=A.VARIABLE_NAME AND B.VARIABLE_VALUE - A.VARIABLE_VALUE >0" > $RESULT_DIR/status-after-test-$threads.txt
 
   $MYSQL_CMD -e \
-  "select A.STAT_TYPE, B.VALUE - A.VALUE \
+   "select A.STAT_TYPE, FORMAT(B.VALUE - A.VALUE,0) \
    from information_schema.rocksdb_perf_context_global B, test.rocksdb_perf_context_global A \
    where B.STAT_TYPE=A.STAT_TYPE AND B.VALUE - A.VALUE >0" > $RESULT_DIR/perf_context-after-test-$threads.txt
 
