@@ -61,6 +61,7 @@ if [ -d $RESULT_DIR ]; then
   exit 1
 fi
 
+
 echo "Starting test "$RUN_NAME" with $SERVER_DIR"
 if [[ $USE_PERF ]] ; then
   echo " Collecting perf profile"
@@ -104,7 +105,7 @@ while true ; do
   sleep 5
   client_attempts=0
   while true ; do
-    $MYSQL_CMD -e "drop database sbtest"
+    $MYSQL_CMD -e "drop database if exists sbtest"
     $MYSQL_CMD -e "create database sbtest"
 
     if [ $? -eq 0 ]; then
@@ -152,6 +153,9 @@ fi
 
 ##  /usr/share/sysbench/oltp_write_only.lua --table-size=250000 --tables=4"
 SYSBENCH_TEST="oltp_write_only.lua"
+
+(cd $SERVER_DIR && git log -1 ) > $RESULT_DIR/server-cset.txt
+(cd $SERVER_DIR/rocksdb && git log -1 ) > $RESULT_DIR/rocksdb-cset.txt
 
 cat > $RESULT_DIR/info.txt <<END
 SERVERNAME=$SERVERNAME
