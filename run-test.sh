@@ -1,18 +1,19 @@
 #!/bin/bash
 
 usage () {
-echo "Usage: $0 [-p] [-m] [-c] [-d] server_name test_run_name"
+echo "Usage: $0 [-p] [-m] [-c] [-d] [-e] server_name test_run_name"
 echo "  -p - Use perf for profiling"
 echo "  -m - Put datadir on /dev/shm"
 echo "  -c - Assume sysbench uses 4 tables and move them to different CFs."
 echo "  -d - Same but use 2 CFs"
+echo "  -e - Remove the secondary index"
 }
 
 ###
 ### Parse options
 ###
 
-while getopts ":pmcd" opt; do
+while getopts ":pmcde" opt; do
   case ${opt} in
     p ) USE_PERF=1
       ;;
@@ -21,6 +22,8 @@ while getopts ":pmcd" opt; do
     c ) USE_4_CFS=1
       ;;
     d ) USE_2_CFS=1
+      ;;
+    e ) DROP_SECONDARY_INDEX=1
       ;;
     \? ) 
 	usage;
@@ -176,6 +179,21 @@ fi
 if [[ $USE_2_CFS ]] ; then
   echo "Splitting 2 tables into different CFs"
   $MYSQL_CMD < make-2-cfs.sql
+fi
+
+if [[ $DROP_SECONDARY_INDEX ]]; then
+  if [[ $USE_4_CFS ]]; then
+    echo "DROP_SECONDARY_INDEX and USE_4_CFS are not supported"
+    exit 1
+  fi
+  if [[ $USE_2_CFS ]]; then
+    echo "DROP_SECONDARY_INDEX and USE_2_CFS are not supported"
+    exit 1
+  fi
+
+  echo "Dropping the secondary index"
+  echo "alter table sbtest.sbtest1 drop key k_1" | $MYSQL_CMD
+  echo "show create table sbtest.sbtest1" | $MYSQL_CMD
 fi
 
 sleep 3
