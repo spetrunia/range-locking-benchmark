@@ -225,7 +225,7 @@ for threads in 1 5 10 20 40 60 80 100; do
 
   $MYSQL_CMD -e "drop table if exists test.rocksdb_perf_context_global;"
   $MYSQL_CMD -e "create table test.rocksdb_perf_context_global as select * from information_schema.rocksdb_perf_context_global \
-	         where stat_type LIKE '%RANGELOCK%'"
+	         where stat_type LIKE '%RANGELOCK%' or stat_type LIKE 'LOCK%'"
 
   SYSBENCH_ALL_ARGS="$SYSBENCH_ARGS --threads=$threads"
 

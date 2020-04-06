@@ -64,7 +64,9 @@ log-error
 language=$BASEDIR/sql/share/english
 server-id=12
 
+rocksdb_perf_context_level=2
 # rocksdb_use_range_locking=1 
+
 EOF
 
 echo "$BASEDIR/sql/mysqld --defaults-file=`pwd`/my-fbmysql-$name.cnf"
