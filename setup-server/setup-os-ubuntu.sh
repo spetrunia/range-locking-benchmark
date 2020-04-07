@@ -18,4 +18,6 @@ if [ -e /etc/debian_version ] ; then
 
 # Need unzip to unpack TPC-DS generator
   sudo apt-get -y install unzip
+
+  sudo apt-get -y install mosh
 fi
