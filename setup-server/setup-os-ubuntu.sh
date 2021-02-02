@@ -3,9 +3,9 @@
 if [ -e /etc/debian_version ] ; then
   sudo apt-get update
   sudo apt-get -y install g++ cmake libbz2-dev libaio-dev bison zlib1g-dev libsnappy-dev libboost-all-dev
-  sudo apt-get -y install libgflags-dev libreadline6-dev libncurses5-dev liblz4-dev gdb git libzstd-dev
+  sudo apt-get -y install libgflags-dev libreadline6-dev libncurses5-dev liblz4-dev gdb git 
 
-  sudo apt-get -y install libzstd0
+  #sudo apt-get -y install libzstd0 libzstd-dev
   sudo apt-get -y install libssl-dev
 
 # percona server:
@@ -20,4 +20,12 @@ if [ -e /etc/debian_version ] ; then
   sudo apt-get -y install unzip
 
   sudo apt-get -y install mosh
+  sudo apt-get -y install libcap-dev
+
+  git clone https://github.com/facebook/zstd.git
+  cd zstd/
+  make 
+  sudo make install
+  cd ..
+
 fi

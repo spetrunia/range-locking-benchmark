@@ -27,15 +27,24 @@ fi
 
 git submodule init
 git submodule update
-cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=system \
-  -DWITH_ZLIB=bundled -DMYSQL_MAINTAINER_MODE=0 -DENABLED_LOCAL_INFILE=1 \
-  -DENABLE_DTRACE=0 -DCMAKE_CXX_FLAGS="-march=native"
-make -j8
+mkdir -p build
+cd build
+
+cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DDOWNLOAD_BOOST=1 \
+  -DWITH_BOOST=/home/ubuntu/mysql-8.0-boost \
+  -DCMAKE_CXX_FLAGS="-march=native" \
+  -DENABLE_DOWNLOADS=1 \
+  -DWITH_SSL:STRING=system -DWITH_ZLIB:STRING=system \
+  -DWITH_ZSTD:STRING=/usr/local -DWITH_LZ4:STRING=system \
+
+make -j20
+cd ..
 
 cd mysql-test
-./mtr alias
-cp -r var/install.db $DATADIR
-cp -r var/install.db $DATADIR.clean
+../build/mysql-test/mtr alias
+cp -r ../build/mysql-test/var/data $DATADIR
+cp -r ../build/mysql-test/var/data $DATADIR.clean
 cd ../..
 
 cat > my-fbmysql-$name.cnf << EOF
