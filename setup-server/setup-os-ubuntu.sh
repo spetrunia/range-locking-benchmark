@@ -21,6 +21,7 @@ if [ -e /etc/debian_version ] ; then
 
   sudo apt-get -y install mosh
   sudo apt-get -y install libcap-dev
+  sudo apt-get -y install pkg-config
 
   git clone https://github.com/facebook/zstd.git
   cd zstd/
