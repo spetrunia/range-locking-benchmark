@@ -1,5 +1,3 @@
-#!/bin/bash
-
 usage () {
 echo "Usage: $0 [-p] [-m] [-c] [-d] [-e] server_name test_run_name"
 echo "  -p - Use perf for profiling"
@@ -51,11 +49,39 @@ if [ "x${RUN_NAME}y" = "xy" ] ; then
   exit 1
 fi
 
+I_S="information_schema"
 SERVER_DIR=mysql-5.6-$SERVERNAME
 if [ ! -d $SERVER_DIR ]; then 
-  echo "Bad server name $SERVERNAME."
-  exit 1
+  SERVER_DIR=mysql-8.0-$SERVERNAME
+  USING_MYSQL8=1
+  I_S="performance_schema"
+  if [ ! -d $SERVER_DIR ]; then 
+    SERVER_DIR=mysql-$SERVERNAME
+    if [ ! -d $SERVER_DIR ]; then 
+      echo "Bad server name $SERVERNAME."
+      exit 1
+    fi
+  fi
 fi
+
+if [[ $USING_MYSQL8 ]]; then
+  MYSQL_CLIENT=$SERVER_DIR/build/bin/mysql
+  MYSQLD_BINARY=$SERVER_DIR/build/bin/mysqld
+else
+  MYSQL_CLIENT=$SERVER_DIR/client/mysql
+  MYSQLD_BINARY=$SERVER_DIR/sql/mysqld 
+fi
+
+if [ ! -f $MYSQL_CLIENT ]; then
+  echo "Cannot find $MYSQL_CLIENT"
+  exit 1;
+fi 
+
+if [ ! -f $MYSQLD_BINARY ]; then
+  echo "Cannot find $MYSQLD_BINARY"
+  exit 1;
+fi 
+
 
 RESULT_DIR=results/$RUN_NAME
 
@@ -90,21 +116,37 @@ sleep 5
 DATA_DIR=data-fbmysql-$SERVERNAME
 rm -rf $DATA_DIR
 
+initialize_mysql8_datadir() {
+  $MYSQLD_BINARY --defaults-file=./my-fbmysql-${SERVERNAME}.cnf --initialize-insecure
+}
+
 if [[ $USE_RAMDISK ]] ; then
   rm -rf /dev/shm/$DATA_DIR
-  cp -r ${DATA_DIR}.clean /dev/shm/$DATA_DIR
-  ln -s /dev/shm/$DATA_DIR $DATA_DIR
+  if [[ $USING_MYSQL8 ]] ; then
+    # intialize 
+    mkdir /dev/shm/$DATA_DIR
+    ln -s /dev/shm/$DATA_DIR $DATA_DIR
+    initialize_mysql8_datadir
+  else
+    cp -r ${DATA_DIR}.clean /dev/shm/$DATA_DIR
+    ln -s /dev/shm/$DATA_DIR $DATA_DIR
+  fi
 else
-  cp -r ${DATA_DIR}.clean $DATA_DIR
+  if [[ $USING_MYSQL8 ]] ; then
+    mkdir $DATA_DIR
+    initialize_mysql8_datadir
+  else
+    cp -r ${DATA_DIR}.clean $DATA_DIR
+  fi
 fi	
 
 #exit 0;
-MYSQL_CMD="./$SERVER_DIR/client/mysql --defaults-file=./my-fbmysql-${SERVERNAME}.cnf -uroot"
+MYSQL_CMD="$MYSQL_CLIENT --defaults-file=./my-fbmysql-${SERVERNAME}.cnf -uroot"
 
 server_attempts=0
 
 while true ; do
-  ./$SERVER_DIR/sql/mysqld --defaults-file=./my-fbmysql-${SERVERNAME}.cnf & 
+  $MYSQLD_BINARY --defaults-file=./my-fbmysql-${SERVERNAME}.cnf & 
   sleep 5
   client_attempts=0
   while true ; do
@@ -201,7 +243,7 @@ $MYSQL_CMD -e "show variables like 'rocksdb%'" > $RESULT_DIR/variables-rocksdb.t
 
 $MYSQL_CMD -e "show variables" > $RESULT_DIR/variables-all.txt
 
-$MYSQL_CMD -e "select * from information_schema.GLOBAL_STATUS where variable_name like 'ROCKSDB%'" > $RESULT_DIR/status-before-test.txt
+$MYSQL_CMD -e "select * from $I_S.global_status where variable_name like 'ROCKSDB%'" > $RESULT_DIR/status-before-test.txt
 
 
 sleep 3
@@ -220,11 +262,11 @@ for threads in 1 5 10 20 40 60 80 100; do
   #echo "THREADS $threads $storage_engine"
 
 
-  $MYSQL_CMD -e "drop table if exists test.rocksdb_vars;"
-  $MYSQL_CMD -e "create table test.rocksdb_vars as select * from information_schema.GLOBAL_STATUS where variable_name like 'ROCKSDB%'"
+  $MYSQL_CMD -e "drop table if exists sbtest.rocksdb_vars;"
+  $MYSQL_CMD -e "create table sbtest.rocksdb_vars as select * from $I_S.global_status where variable_name like 'ROCKSDB%'"
 
-  $MYSQL_CMD -e "drop table if exists test.rocksdb_perf_context_global;"
-  $MYSQL_CMD -e "create table test.rocksdb_perf_context_global as select * from information_schema.rocksdb_perf_context_global \
+  $MYSQL_CMD -e "drop table if exists sbtest.rocksdb_perf_context_global;"
+  $MYSQL_CMD -e "create table sbtest.rocksdb_perf_context_global as select * from information_schema.rocksdb_perf_context_global \
 	         where stat_type LIKE '%RANGELOCK%' or stat_type LIKE 'LOCK%'"
 
   SYSBENCH_ALL_ARGS="$SYSBENCH_ARGS --threads=$threads"
@@ -234,12 +276,12 @@ for threads in 1 5 10 20 40 60 80 100; do
 
   $MYSQL_CMD -e \
   "select A.VARIABLE_NAME, B.VARIABLE_VALUE - A.VARIABLE_VALUE \
-   from information_schema.GLOBAL_STATUS B, test.rocksdb_vars A \
+   from $I_S.global_status B, sbtest.rocksdb_vars A \
    where B.VARIABLE_NAME=A.VARIABLE_NAME AND B.VARIABLE_VALUE - A.VARIABLE_VALUE >0" > $RESULT_DIR/status-after-test-$threads.txt
 
   $MYSQL_CMD -e \
    "select A.STAT_TYPE, FORMAT(B.VALUE - A.VALUE,0) \
-   from information_schema.rocksdb_perf_context_global B, test.rocksdb_perf_context_global A \
+   from information_schema.rocksdb_perf_context_global B, sbtest.rocksdb_perf_context_global A \
    where B.STAT_TYPE=A.STAT_TYPE AND B.VALUE - A.VALUE >0" > $RESULT_DIR/perf_context-after-test-$threads.txt
 
 done
