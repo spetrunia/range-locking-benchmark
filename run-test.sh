@@ -122,6 +122,7 @@ initialize_mysql8_datadir() {
 
 if [[ $USE_RAMDISK ]] ; then
   rm -rf /dev/shm/$DATA_DIR
+  rm -rf /dev/shm/data-fbmysql-*
   if [[ $USING_MYSQL8 ]] ; then
     # intialize 
     mkdir /dev/shm/$DATA_DIR
@@ -252,15 +253,21 @@ sleep 3
 if [[ $USE_PERF ]] ; then
   # Start perf
   sudo sh -c "echo -1 >>  /proc/sys/kernel/perf_event_paranoid"
-  perf record -F 99 -p $MYSQLD_PID --call-graph dwarf sleep 300
+  sudo perf record -F 99 -p $MYSQLD_PID --call-graph dwarf sleep 60 &
 fi
 
 
 #############################################################################
-### Run the benchmnark
-for threads in 1 5 10 20 40 60 80 100; do
-  #echo "THREADS $threads $storage_engine"
+### Run the benchmark
 
+RUNS="1 5 10 20 40 60 80 100"
+
+if [[ $USE_PERF ]] ; then
+  RUNS="100"
+fi
+
+for threads in $RUNS ; do
+  #echo "THREADS $threads $storage_engine"
 
   $MYSQL_CMD -e "drop table if exists sbtest.rocksdb_vars;"
   $MYSQL_CMD -e "create table sbtest.rocksdb_vars as select * from $I_S.global_status where variable_name like 'ROCKSDB%'"
@@ -286,6 +293,9 @@ for threads in 1 5 10 20 40 60 80 100; do
 
 done
 
-
+if [[ $USE_PERF ]] ; then
+  CUR_USER=`id -un`
+  sudo chown $CUR_USER perf.*
+fi
 
 
