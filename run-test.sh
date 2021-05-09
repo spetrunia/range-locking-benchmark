@@ -226,8 +226,11 @@ fi
 
 if [[ $DROP_SECONDARY_INDEX ]]; then
   if [[ $USE_4_CFS ]]; then
-    echo "DROP_SECONDARY_INDEX and USE_4_CFS are not supported"
-    exit 1
+      echo "Dropping the secondary indexes"
+      for i in `seq 1 4` ; do 
+        echo "alter table sbtest.sbtest$i drop key k_1" | $MYSQL_CMD
+        echo "show create table sbtest.sbtest$i" | $MYSQL_CMD
+      done
   fi
   if [[ $USE_2_CFS ]]; then
     echo "DROP_SECONDARY_INDEX and USE_2_CFS are not supported"
@@ -253,7 +256,8 @@ sleep 3
 if [[ $USE_PERF ]] ; then
   # Start perf
   sudo sh -c "echo -1 >>  /proc/sys/kernel/perf_event_paranoid"
-  sudo perf record -F 99 -p $MYSQLD_PID --call-graph dwarf sleep 60 &
+  #sudo perf record -F 99 -p $MYSQLD_PID -g sleep 60 &
+  sudo perf record -F 99 -a -g sleep 60 &
 fi
 
 
