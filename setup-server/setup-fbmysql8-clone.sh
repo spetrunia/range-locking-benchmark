@@ -39,6 +39,7 @@ cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DWITH_UNIT_TESTS:BOOL=OFF \
   -DWITH_SSL:STRING=system -DWITH_ZLIB:STRING=system \
   -DWITH_ZSTD:STRING=/usr/local -DWITH_LZ4:STRING=system \
+  -DWITH_JEMALLOC=1
 
 make -j20
 cd ../..
