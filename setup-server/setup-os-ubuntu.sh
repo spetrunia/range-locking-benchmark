@@ -23,6 +23,8 @@ if [ -e /etc/debian_version ] ; then
   sudo apt-get -y install libcap-dev
   sudo apt-get -y install pkg-config
 
+  sudo apt-get -y install libjemalloc-dev
+
   git clone https://github.com/facebook/zstd.git
   cd zstd/
   make 
